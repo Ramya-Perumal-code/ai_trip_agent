@@ -62,13 +62,13 @@ const Index = () => {
     } catch (error: any) {
       console.error("Error:", error);
       let errorMessage = "Sorry, I encountered an error while processing your request. Please try again.";
-      
+
       if (error.response) {
         errorMessage = error.response.data?.detail || errorMessage;
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         text: errorMessage,

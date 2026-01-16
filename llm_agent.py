@@ -2,6 +2,31 @@ import ollama
 import json
 from tool_calls import search_rag, duckduckgo_search
 
+def is_relevant(query: str, attraction_name: str) -> bool:
+    """
+    Checks if the attraction name is actually relevant to the user query.
+    Prevents false positives like Madame Tussauds appearing for Taj Mahal.
+    """
+    if not attraction_name:
+        return False
+        
+    query_lower = query.lower()
+    attraction_lower = attraction_name.lower()
+    
+    # Split query into meaningful words (length > 3)
+    query_words = [w for w in query_lower.split() if len(w) > 3]
+    
+    # If any specific name from the query appears in the attraction name, it's a good sign
+    for word in query_words:
+        if word in attraction_lower:
+            return True
+            
+    # Also check if the attraction name appears in the query
+    if attraction_lower in query_lower:
+        return True
+        
+    return False
+
 def TravelResearchAgent(query: str) -> str:
     """
     Research agent that gathers information from RAG and Web to answer travel queries.
@@ -15,9 +40,18 @@ def TravelResearchAgent(query: str) -> str:
         print("🔍 Searching RAG...")
         rag_results = search_rag(query, k=3)
         
-        # Filter results by score
+        # Filter results by score AND relevance
         RAG_SCORE_THRESHOLD = 0.5
-        valid_rag_results = [res for res in rag_results if res[1] >= RAG_SCORE_THRESHOLD]
+        valid_rag_results = []
+        
+        for doc, score in rag_results:
+            meta = getattr(doc, 'metadata', {})
+            attraction_name = meta.get("Attraction_name", "")
+            
+            if score >= RAG_SCORE_THRESHOLD and is_relevant(query, attraction_name):
+                valid_rag_results.append((doc, score))
+            elif score >= RAG_SCORE_THRESHOLD:
+                print(f"⏩ Rejecting '{attraction_name}' - Score OK ({score:.2f}) but not relevant to query.")
         
         if valid_rag_results:
             rag_texts = []
@@ -36,8 +70,8 @@ def TravelResearchAgent(query: str) -> str:
     except Exception as e:
         print(f"❌ RAG Search failed: {e}")
 
-    # 2. Gather Additional Information
-    additional_data = gather_additional_information(query, valid_rag_results if 'valid_rag_results' in locals() else [])
+    # 3. Gather Additional Information
+    # additional_data = gather_additional_information(query, valid_rag_results if 'valid_rag_results' in locals() else [])
 
     # 3. Search Web (Fallback if RAG is empty)
     web_info = ""
@@ -107,7 +141,6 @@ def TravelResearchAgent(query: str) -> str:
     user_content = (
         f"User Query: {query}\n\n"
         f"### RAG Information:\n{rag_info if rag_info else 'No RAG info available.'}\n\n"
-        f"### Additional Information (Specific):\n{additional_data if additional_data else 'No specific additional info found.'}\n\n"
         f"### Web Information:\n{web_info if web_info else 'No Web info available.'}\n\n"
         "Please provide a comprehensive answer."
     )
@@ -127,17 +160,43 @@ def TravelResearchAgent(query: str) -> str:
 def gather_additional_information(query: str, rag_results: list) -> str:
     """
     Extracts 'additional Information' from RAG results if present.
+    Filters by the most relevant attraction name to avoid data mixing.
     Fallback: Uses DuckDuckGo search if not found in RAG.
     """
-    additional_info = []
+    additional_info = set() # Use a set to prevent duplicates
+    primary_attraction = None
     
     # 1. Try to get from RAG metadata
     if rag_results:
-        print("🔍 Checking RAG for 'additional Information'...")
+        # Filter RAG results by score and relevance BEFORE processing
+        RAG_SCORE_THRESHOLD = 0.5
+        filtered_results = []
         for doc, score in rag_results:
-            # Check metadata
             meta = getattr(doc, 'metadata', {})
-            # In rag_upload.py, it's stored as "additional Information"
+            attr_name = meta.get("Attraction_name", "")
+            if score >= RAG_SCORE_THRESHOLD and is_relevant(query, attr_name):
+                filtered_results.append((doc, score))
+            elif score >= RAG_SCORE_THRESHOLD:
+                print(f"⏩ [GatherInfo] Skipping '{attr_name}' as it doesn't match query.")
+
+        if filtered_results:
+            print("🔍 Checking RAG for 'additional Information'...")
+            # Use the most relevant (top) attraction as the anchor
+            first_doc, _ = filtered_results[0]
+            primary_attraction = getattr(first_doc, 'metadata', {}).get("Attraction_name")
+            if primary_attraction:
+                print(f"🎯 Target Attraction: {primary_attraction}")
+
+            for doc, score in filtered_results:
+                # Check metadata
+                meta = getattr(doc, 'metadata', {})
+                current_attraction = meta.get("Attraction_name")
+                
+                # Double check to ensure we don't mix info from different attractions
+                if primary_attraction and current_attraction and current_attraction != primary_attraction:
+                    continue
+
+                # In rag_upload.py, it's stored as "additional Information"
             info_data = meta.get("additional Information")
             
             if info_data:
@@ -148,15 +207,17 @@ def gather_additional_information(query: str, rag_results: list) -> str:
                         if info_data.strip().startswith('['):
                             parsed = json.loads(info_data)
                             if isinstance(parsed, list):
-                                additional_info.extend([str(p) for p in parsed])
+                                for p in parsed:
+                                    additional_info.add(str(p))
                             else:
-                                additional_info.append(str(parsed))
+                                additional_info.add(str(parsed))
                         else:
-                             additional_info.append(info_data)
+                             additional_info.add(info_data)
                     elif isinstance(info_data, list):
-                        additional_info.extend([str(i) for i in info_data])
+                        for i in info_data:
+                            additional_info.add(str(i))
                 except Exception:
-                    additional_info.append(str(info_data))
+                    additional_info.add(str(info_data))
 
     # 2. If no additional info found in RAG, search specifically for it (Fallback)
     if not additional_info:
@@ -169,22 +230,84 @@ def gather_additional_information(query: str, rag_results: list) -> str:
                  if isinstance(results, list):
                      for r in results:
                          if isinstance(r, dict):
-                             additional_info.append(f"Web: {r.get('body', r.get('snippet', ''))}")
+                             additional_info.add(f"Web: {r.get('body', r.get('snippet', ''))}")
                          else:
-                            additional_info.append(f"Web: {str(r)}")
+                            additional_info.add(f"Web: {str(r)}")
                  elif isinstance(results, str):
-                     additional_info.append(f"Web: {results}")
+                     additional_info.add(f"Web: {results}")
             else:
                 print("⚠️ Additional Info Web search returned no results.")
         except Exception as e:
             print(f"❌ Additional Info Web Search failed: {e}")
     else:
-        print(f"✅ Found {len(additional_info)} 'additional Information' items in RAG.")
-        print(additional_info)
+        print(f"✅ Found {len(additional_info)} unique 'additional Information' items in RAG.")
+        print(list(additional_info))
 
-    return "\n".join([f"- {item}" for item in additional_info])
+    return "\n".join([f"- {item}" for item in sorted(list(additional_info))])
+
+def AdditionalInfoAgent(query: str) -> str:
+    """
+    Standalone agent that gathers and synthesizes additional info using RAG/Web and LLM.
+    """
+    print(f"🔍 [AdditionalInfoAgent] Processing query: {query}")
+    try:
+        # 1. Gather raw data from RAG/Web
+        rag_results = search_rag(query, k=3)
+        raw_info = gather_additional_information(query, rag_results)
+        
+        if not raw_info or "no specific additional info found" in raw_info.lower():
+            return "No specific additional information found."
+
+        # 2. Synthesize using LLM
+        print("📝 [AdditionalInfoAgent] Synthesizing metadata...")
+        system_prompt = (
+            "You are a 'Travel Metadata Expert'. Your job is to take raw, technical, or fragmented "
+            "information about a tourist attraction and turn it into a concise, professional, and "
+            "highly readable list of supplementary details for a traveler.\n\n"
+            "Instructions:\n"
+            "1. Remove any duplicate facts.\n"
+            "2. Group similar points together (e.g., accessibility, rules, tips).\n"
+            "3. Keep it brief and bulleted.\n"
+            "4. DO NOT repeat the main description of the attraction. Focus ONLY on 'Additional Info'/metadata.\n"
+            "5. If the information is missing or empty, simply say 'No specific additional info found.'\n"
+            "6. Output in clean Markdown bullet points."
+        )
+        
+        user_content = f"Attraction Query: {query}\n\nRaw Metadata gathered:\n{raw_info}"
+        
+        response = ollama.chat(
+            model="qwen3:0.6b",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content}
+            ]
+        )
+        return response['message']['content']
+        
+    except Exception as e:
+        return f"Error gathering info: {e}"
+
+def OrchestrateAgent(query: str) -> str:
+    """
+    Orchestrator agent that combines TravelResearchAgent and AdditionalInfoAgent.
+    """
+    print(f"🤖 [OrchestrateAgent] Coordinating agents for query: {query}")
+    
+    # 1. Get the primary research/synthesis
+    main_research = TravelResearchAgent(query)
+    
+    # 2. Get specific additional details
+    supplementary_info = AdditionalInfoAgent(query)
+    
+    # 3. Combine responses
+    combined_response = main_research
+    
+    if supplementary_info and "no specific additional info found" not in supplementary_info.lower():
+        combined_response += f"\n\n---\n### ℹ️ Supplementary Information\n{supplementary_info}"
+        
+    return combined_response
 
 if __name__ == "__main__":
     # Simple test
-    q = "Admission to Madame Tussauds London"
-    print(TravelResearchAgent(q))
+    q = "tell me about taj mahal"
+    print(OrchestrateAgent(q))

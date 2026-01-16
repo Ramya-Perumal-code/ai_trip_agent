@@ -192,4 +192,4 @@ def upload_rag():
     else:
         return "No documents found in the dataset_json folder."
 
-# print(upload_rag())
+print(upload_rag())

@@ -122,7 +122,8 @@ from typing import Optional
 import logging
 
 # Import agents from llm_agent
-from llm_agent import TravelResearchAgent
+# Import agents from llm_agent
+from llm_agent import TravelResearchAgent, AdditionalInfoAgent, OrchestrateAgent
 
 # Configure logging
 logging.basicConfig(
@@ -301,8 +302,8 @@ async def generate_final_response(request: FinalResponseRequest):
         
         logger.info(f"Received final response request with content length: {len(request.content or '')}, user_query: {request.user_query[:50] if request.user_query else 'None'}...")
         
-        # Call theTravelResearchAgent
-        final_response = TravelResearchAgent(
+        # Call the OrchestrateAgent
+        final_response = OrchestrateAgent(
             query=request.user_query or ""
         )
         
@@ -329,6 +330,30 @@ async def generate_final_response(request: FinalResponseRequest):
             detail=f"Internal server error: {str(e)}"
         )
 
+
+
+@app.get(
+    "/api/v1/final-response",
+    tags=["Agents"],
+    summary="Generate Final Response (GET)",
+    description="Browser-friendly GET version of the final response agent."
+)
+async def generate_final_response_get(query: str):
+    """
+    Generate a final response via GET request (e.g. for browser testing).
+    """
+    try:
+        logger.info(f"Received GET final response request for query: {query}")
+        final_response = OrchestrateAgent(query=query)
+        
+        return {
+            "success": True,
+            "response": final_response,
+            "message": "Final response generated successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error generating final response: {str(e)}", exc_info=True)
+        return {"success": False, "error": str(e)}
 
 @app.post(
     "/api/v1/additional-info",
@@ -392,7 +417,51 @@ async def gather_additional_info(request: AdditionalInfoRequest):
         )
 
 
-# --- Error Handlers ---
+@app.get(
+    "/api/v1/additional-info",
+    tags=["Agents"],
+    summary="Gather Additional Information (GET)",
+    description="Browser-friendly GET version of the additional info agent."
+)
+async def gather_additional_info_get(query: str):
+    """
+    Gather additional information via GET request (e.g. for browser testing).
+    """
+    try:
+        logger.info(f"Received GET additional info request for query: {query}")
+        gathered_info = AdditionalInfoAgent(query=query)
+        
+        return {
+            "success": True,
+            "info": gathered_info,
+            "query": query,
+            "message": "Additional information gathered successfully"
+        }
+    except Exception as e:
+        logger.error(f"Error gathering additional info: {str(e)}", exc_info=True)
+        return {"success": False, "error": str(e)}
+
+@app.get(
+    "/api/v1/test-browser",
+    tags=["Testing"],
+    summary="Browser Test Endpoint (GET)",
+    description="Allows testing the agent directly from the browser address bar."
+)
+async def test_browser_search(query: str):
+    """
+    Test the agent via a simple GET request (Browser URL bar).
+    Example: http://localhost:8000/api/v1/test-browser?query=Venice
+    """
+    try:
+        logger.info(f"Browser test query: {query}")
+        result = OrchestrateAgent(query)
+        return {
+            "success": True,
+            "query": query,
+            "response": result
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):

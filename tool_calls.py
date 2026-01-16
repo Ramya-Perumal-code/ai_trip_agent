@@ -146,3 +146,49 @@ if __name__ == "__main__":
     # web_results = duckduckgo_search(query, max_results=3)
     # print("\nDuckDuckGo Search Results:")
     # print(json.dumps(web_results, indent=2))
+
+try:
+    from gyg_fetcher import search_tours, get_tour_details
+except ImportError:
+    print("Warning: gyg_fetcher not found.")
+    def search_tours(*args, **kwargs): return []
+    def get_tour_details(*args, **kwargs): return {}
+
+def search_gyg_activity(query: str) -> str:
+    """
+    Searches for activities using the GetYourGuide Fetcher (Mock/Real).
+    Returns a formatted string of the top result's details.
+    """
+    try:
+        # 1. Search
+        print(f"🎫 [GYG] Searching for: {query}")
+        results = search_tours(query, limit=1)
+        
+        if not results:
+            return ""
+
+        # 2. Get Details of top result
+        top_tour_id = results[0]["tour_id"]
+        tour_data = get_tour_details(top_tour_id)
+        
+        # 3. Format as a readable string for the LLM
+        if not tour_data:
+             return ""
+             
+        # Create a compact summary
+        summary = [
+            f"--- LIVE BOOKING DATA (GetYourGuide) ---",
+            f"Title: {tour_data.get('Attraction_name')}",
+            f"Rating: {tour_data.get('User Rating')}",
+            f"Duration: {tour_data.get('Duration')}",
+            f"Highlights: {', '.join(tour_data.get('Why visit', [])[:3])}",
+            f"Inclusions: {', '.join(tour_data.get('What included', [])[:3])}",
+            f"Price: Check availability for latest pricing.",
+             "----------------------------------------"
+        ]
+        return "\n".join(summary)
+
+    except Exception as e:
+        print(f"❌ GYG Search failed: {e}")
+        return ""
+
