@@ -58,6 +58,10 @@ This project demonstrates advanced **Agentic AI** patterns:
 4.  **Local Inference**:
     *   Runs entirely on local hardware using **Ollama**, ensuring data privacy and zero inference costs.
 
+5.  **Technical Guardrails (Strict Relevance)**:
+    *   **Keyword Filtering**: Prevents "Data Mixing" where RAG might return high-scoring but semantically unrelated documents.
+    *   **Fallback Logic**: Automatically shifts to Web Search ONLY when the local Knowledge Base fails relevance checks.
+
 ## 🤖 Agent Specifications (Multi-Agent System)
 
 The system employs a collaborative multi-agent architecture:
@@ -101,7 +105,14 @@ The system employs a collaborative multi-agent architecture:
 *   **Backend**: Python, FastAPI, Uvicorn
 *   **Frontend**: React, TypeScript, Vite, TailwindCSS
 *   **AI/LLM**: Ollama (running local models like `qwen2.5`)
-*   **Data**: Qdrant (Vector Store/RAG), DuckDuckGo (Web)
+*   **Data**: Qdrant (Vector Store/RAG), DuckDuckGo (Web), Firecrawl (Scraping)
+
+## 🛠️ Environment Setup
+To run the full suite (including data automation), create a `.env` file in the root:
+```env
+FIRECRAWL_API_KEY=your_key_here
+# Ollama must be running locally
+```
 
 ## 🏃‍♂️ How to Run
 
@@ -122,6 +133,11 @@ cd frontend
 npm run dev
 ```
 *   Runs on: `http://localhost:3000` (auto-proxies request to backend)
+
+### 3. Data Preparation (Optional)
+If you want to add new attractions to the Knowledge Base:
+1.  **Scrape**: `python dataset_json/automate.py <URL>` (Requires Firecrawl Key).
+2.  **Upload**: `python rag_upload.py` to re-index the Qdrant database.
 
 ## 🧪 Testing
 You can test the agent in three ways:
