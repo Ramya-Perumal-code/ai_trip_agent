@@ -4,6 +4,9 @@
   "description": "Frontend application for Trip Agent API",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
