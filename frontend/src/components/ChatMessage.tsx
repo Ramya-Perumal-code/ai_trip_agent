@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Bot, User } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/utils.ts";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -35,7 +35,7 @@ export const ChatMessage = ({ message, isAssistant, index }: ChatMessageProps) =
           <Bot className="w-5 h-5 text-white" />
         </motion.div>
       )}
-      
+
       <motion.div
         initial={{ scale: 0.95 }}
         animate={{ scale: 1 }}
@@ -94,10 +94,10 @@ export const ChatMessage = ({ message, isAssistant, index }: ChatMessageProps) =
                   </blockquote>
                 ),
                 a: ({ href, children }) => (
-                  <a 
-                    href={href} 
-                    className="text-primary hover:underline font-medium" 
-                    target="_blank" 
+                  <a
+                    href={href}
+                    className="text-primary hover:underline font-medium"
+                    target="_blank"
                     rel="noopener noreferrer"
                   >
                     {children}
