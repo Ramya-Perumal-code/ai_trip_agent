@@ -23,6 +23,10 @@ import argparse
 import requests
 from typing import Any, Dict
 import json
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # Base endpoint for Firecrawl scrape API
 API_ENDPOINT = "https://api.firecrawl.dev/v2/scrape"
