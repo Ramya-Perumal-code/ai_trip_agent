@@ -127,8 +127,8 @@ async def root():
         "version": "1.0.0",
         "endpoints": {
             "health": "/health",
-            "final_response": "/api/v1/final-response",
-            "additional_info": "/api/v1/additional-info"
+            "final_response": "/v1/final-response",
+            "additional_info": "/v1/additional-info"
         }
     }
 
@@ -141,12 +141,14 @@ async def health_check():
     import os
     groq_key = os.getenv("GROQ_API_KEY")
     qdrant_url = os.getenv("QDRANT_URL")
+    google_key = os.getenv("GOOGLE_API_KEY")
     
     missing = []
     if not groq_key: missing.append("GROQ_API_KEY")
     if not qdrant_url: missing.append("QDRANT_URL")
+    if not google_key: missing.append("GOOGLE_API_KEY")
     
-    mode = "cloud" if (groq_key and qdrant_url) else "local_fallback"
+    mode = "cloud" if (groq_key and qdrant_url and google_key) else "local_fallback"
     
     return {
         "status": "healthy",
@@ -157,7 +159,7 @@ async def health_check():
 
 
 @app.post(
-    "/api/v1/final-response",
+    "/v1/final-response",
     response_model=FinalResponseResponse,
     status_code=status.HTTP_200_OK,
     tags=["Agents"],
@@ -224,7 +226,7 @@ async def generate_final_response(request: FinalResponseRequest):
 
 
 @app.get(
-    "/api/v1/final-response",
+    "/v1/final-response",
     tags=["Agents"],
     summary="Generate Final Response (GET)",
     description="Browser-friendly GET version of the final response agent."
@@ -247,7 +249,7 @@ async def generate_final_response_get(query: str):
         return {"success": False, "error": str(e)}
 
 @app.post(
-    "/api/v1/additional-info",
+    "/v1/additional-info",
     response_model=AdditionalInfoResponse,
     status_code=status.HTTP_200_OK,
     tags=["Agents"],
@@ -309,7 +311,7 @@ async def gather_additional_info(request: AdditionalInfoRequest):
 
 
 @app.get(
-    "/api/v1/additional-info",
+    "/v1/additional-info",
     tags=["Agents"],
     summary="Gather Additional Information (GET)",
     description="Browser-friendly GET version of the additional info agent."
@@ -333,7 +335,7 @@ async def gather_additional_info_get(query: str):
         return {"success": False, "error": str(e)}
 
 @app.get(
-    "/api/v1/test-browser",
+    "/v1/test-browser",
     tags=["Testing"],
     summary="Browser Test Endpoint (GET)",
     description="Allows testing the agent directly from the browser address bar."

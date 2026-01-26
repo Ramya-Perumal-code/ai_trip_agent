@@ -1,8 +1,8 @@
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
 from langchain_community.tools import DuckDuckGoSearchRun
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 import json
 import os
 from dotenv import load_dotenv
@@ -47,10 +47,17 @@ except ImportError:
 
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
-# Use HuggingFace Embeddings (CPU) for both Local and Cloud for now
-# Groq doesn't support embeddings yet, and HF is free/reliable
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+# Hybrid Embeddings: Use Google (Cloud) if key is present, else fallback to local
+if GOOGLE_API_KEY:
+    print("🚀 Using Google Gemini Embeddings (Cloud)")
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=GOOGLE_API_KEY)
+else:
+    print("🏠 Using Local HuggingFace Embeddings")
+    # Conditional import to avoid requiring torch/sentence-transformers in cloud
+    from langchain_huggingface import HuggingFaceEmbeddings
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 
 if QDRANT_URL and QDRANT_API_KEY:
     print("🚀 Connecting to Qdrant Cloud")
