@@ -133,26 +133,27 @@ async def root():
     }
 
 
-@app.get("/health", response_model=HealthResponse, tags=["General"])
+@app.get("/health", tags=["General"])
 async def health_check():
     """
-    Health check endpoint to verify API is running
-    
-    Returns:
-        HealthResponse: Service status and health information
+    Health check endpoint to verify API is running and check environment variables.
     """
-    try:
-        return HealthResponse(
-            status="healthy",
-            message="API is running and ready to process requests",
-            version="1.0.0"
-        )
-    except Exception as e:
-        logger.error(f"Health check failed: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Service is unavailable"
-        )
+    import os
+    groq_key = os.getenv("GROQ_API_KEY")
+    qdrant_url = os.getenv("QDRANT_URL")
+    
+    missing = []
+    if not groq_key: missing.append("GROQ_API_KEY")
+    if not qdrant_url: missing.append("QDRANT_URL")
+    
+    mode = "cloud" if (groq_key and qdrant_url) else "local_fallback"
+    
+    return {
+        "status": "healthy",
+        "mode": mode,
+        "missing_keys": missing,
+        "version": "1.0.0"
+    }
 
 
 @app.post(
