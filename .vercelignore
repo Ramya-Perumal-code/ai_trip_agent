@@ -1,24 +1,20 @@
-# Exclude everything by default
-*
-
-# Allow only necessary backend files
-!api/
-!api/index.py
-!llm_agent.py
-!tool_calls.py
-!requirements.txt
-!vercel.json
-!.env
-!gyg_fetcher.py
-
-# Explicitly exclude large/unnecessary folders even if allowed above
-frontend/
-node_modules/
+# Exclude local environment and cache
 .venv/
+node_modules/
 __pycache__/
-dataset_json/
-MCP/
-.git/
-*.db
 *.pyc
-*.lock
+.git/
+
+# Exclude large data files not needed in cloud
+dataset_json/
+chat_history.db
+MCP/
+
+# Exclude development scripts
+check_rag_scores.py
+check_rag_full.py
+automate.py
+test_*.py
+
+# DO NOT ignore frontend/ here, because Vercel needs it to run the build command!
+# We will use vercel.json to keep the serverless function small instead.
