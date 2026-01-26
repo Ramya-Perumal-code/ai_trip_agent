@@ -142,13 +142,18 @@ async def health_check():
     groq_key = os.getenv("GROQ_API_KEY")
     qdrant_url = os.getenv("QDRANT_URL")
     google_key = os.getenv("GOOGLE_API_KEY")
+    hf_key = os.getenv("HUGGINGFACE_API_KEY")
     
     missing = []
     if not groq_key: missing.append("GROQ_API_KEY")
     if not qdrant_url: missing.append("QDRANT_URL")
-    if not google_key: missing.append("GOOGLE_API_KEY")
     
-    mode = "cloud" if (groq_key and qdrant_url and google_key) else "local_fallback"
+    # We only need ONE cloud embedding key
+    has_cloud_embeddings = bool(google_key or hf_key)
+    if not has_cloud_embeddings:
+        missing.append("GOOGLE_API_KEY or HUGGINGFACE_API_KEY")
+    
+    mode = "cloud" if (groq_key and qdrant_url and has_cloud_embeddings) else "local_fallback"
     
     return {
         "status": "healthy",

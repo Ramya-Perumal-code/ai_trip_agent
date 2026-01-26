@@ -3,6 +3,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
 from langchain_community.tools import DuckDuckGoSearchRun
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_community.embeddings import HuggingFaceInferenceAPIEmbeddings
 import json
 import os
 from dotenv import load_dotenv
@@ -48,16 +49,27 @@ except ImportError:
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 
-# Hybrid Embeddings: Use Google (Cloud) if key is present, else fallback to local
+# Hybrid Embeddings: Use Google or HuggingFace (Cloud) if keys are present, else fallback to local
 if GOOGLE_API_KEY:
     print("🚀 Using Google Gemini Embeddings (Cloud)")
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001", google_api_key=GOOGLE_API_KEY)
+elif HUGGINGFACE_API_KEY:
+    print("🚀 Using HuggingFace Inference API Embeddings (Cloud)")
+    embeddings = HuggingFaceInferenceAPIEmbeddings(
+        api_key=HUGGINGFACE_API_KEY, 
+        model_name="sentence-transformers/all-mpnet-base-v2"
+    )
 else:
     print("🏠 Using Local HuggingFace Embeddings")
     # Conditional import to avoid requiring torch/sentence-transformers in cloud
-    from langchain_huggingface import HuggingFaceEmbeddings
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+    try:
+        from langchain_huggingface import HuggingFaceEmbeddings
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+    except ImportError:
+        print("⚠️ Warning: No cloud keys found and local libraries missing. App will fail.")
+        embeddings = None
 
 if QDRANT_URL and QDRANT_API_KEY:
     print("🚀 Connecting to Qdrant Cloud")
