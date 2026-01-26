@@ -66,7 +66,7 @@ class AdditionalInfoResponse(BaseModel):
 
 # --- API Endpoints ---
 
-@app.get("/", tags=["General"])
+@app.get("/api", tags=["General"])
 async def root():
     return {
         "message": "Trip Agent API",
@@ -78,8 +78,9 @@ async def root():
         }
     }
 
-@app.get("/health", tags=["General"])
+@app.get("/api/health", tags=["General"])
 async def health_check():
+    import os
     groq_key = os.getenv("GROQ_API_KEY")
     qdrant_url = os.getenv("QDRANT_URL")
     google_key = os.getenv("GOOGLE_API_KEY")
@@ -102,7 +103,7 @@ async def health_check():
         "version": "1.0.0"
     }
 
-@app.post("/v1/final-response", response_model=FinalResponseResponse, tags=["Agents"])
+@app.post("/api/v1/final-response", response_model=FinalResponseResponse, tags=["Agents"])
 async def generate_final_response(request: FinalResponseRequest):
     try:
         if not request.user_query:
@@ -119,7 +120,7 @@ async def generate_final_response(request: FinalResponseRequest):
         logger.error(f"Error: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/v1/additional-info", response_model=AdditionalInfoResponse, tags=["Agents"])
+@app.post("/api/v1/additional-info", response_model=AdditionalInfoResponse, tags=["Agents"])
 async def gather_additional_info(request: AdditionalInfoRequest):
     try:
         gathered_info = AdditionalInfoAgent(query=request.query)
