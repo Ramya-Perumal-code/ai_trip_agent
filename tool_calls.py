@@ -1,4 +1,4 @@
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from langchain_qdrant import QdrantVectorStore
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
@@ -48,9 +48,14 @@ except ImportError:
 QDRANT_URL = os.getenv("QDRANT_URL")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 
-# Use HuggingFace Embeddings (CPU) for both Local and Cloud for now
-# Groq doesn't support embeddings yet, and HF is free/reliable
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+# Use Hugging Face Inference API for both Local and Cloud
+# This avoids installing heavy 'torch' and CUDA dependencies (saves ~2GB)
+HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY")
+
+embeddings = HuggingFaceEndpointEmbeddings(
+    huggingfacehub_api_token=HUGGINGFACE_API_KEY,
+    model="sentence-transformers/all-mpnet-base-v2"
+)
 
 if QDRANT_URL and QDRANT_API_KEY:
     print("🚀 Connecting to Qdrant Cloud")

@@ -1,0 +1,10 @@
+﻿fastapi
+qdrant-client
+groq
+duckduckgo-search
+requests
+python-dotenv
+langchain-huggingface
+langchain-qdrant
+langchain-community
+sentence-transformers
